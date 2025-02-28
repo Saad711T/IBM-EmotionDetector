@@ -1,22 +1,32 @@
 import requests
 import json
 
-def emotion_detector(text):
-    url = 'https://sn-watson-emotion.labs.skills.network/v1/watson.runtime.nlp.v1/NlpService/EmotionPredict'
-    headers = {"grpc-metadata-mm-model-id": "emotion_aggregated-workflow_lang_en_stock"}
-    response = requests.post(url, json={"raw_document": {"text": text}}, headers=headers)
+def emotion_detector(text_to_analyze):
+    url ='https://sn-watson-emotion.labs.skills.network/v1/watson.runtime.nlp.v1/NlpService/EmotionPredict'
+    header = {"grpc-metadata-mm-model-id": "emotion_aggregated-workflow_lang_en_stock"}
+    input_json = { "raw_document": { "text": text_to_analyze } }
     
-    if response.status_code == 200:
-        return json.dumps(response.json(), indent=4)  # تنسيق الإخراج ليكون واضحًا
-    return json.dumps({"error": "Failed to fetch emotions"}, indent=4)
+    print(f"📤 Sending text for analysis: {text_to_analyze}")
+    
+    response = requests.post(url, json=input_json, headers=header)
+    status_code = response.status_code
+    print(f"📥 Response status code: {status_code}")
 
-def emotion_predictor(detected_text):
-    if not detected_text or all(value is None for value in detected_text.values()):
-        return json.dumps(detected_text, indent=4)
-    
-    emotions = detected_text.get('emotionPredictions', [{}])[0].get('emotion', {})
-    if not emotions:
-        return json.dumps(detected_text, indent=4)
-    
-    result = {**emotions, 'dominant_emotion': max(emotions, key=emotions.get)}
-    return json.dumps(result, indent=4)
+    emotions = {}
+
+    if status_code == 200:
+        formatted_response = json.loads(response.text)
+        print(f" Emotion analysis result: {formatted_response}")
+        emotions = formatted_response['emotionPredictions'][0]['emotion']
+        dominant_emotion = max(emotions.items(), key=lambda x: x[1])
+        emotions['dominant_emotion'] = dominant_emotion[0]
+    elif status_code == 400:
+        print(" Invalid text! Setting all emotion values to None.")
+        emotions['anger'] = None
+        emotions['disgust'] = None
+        emotions['fear'] = None
+        emotions['joy'] = None
+        emotions['sadness'] = None
+        emotions['dominant_emotion'] = None
+
+    return emotions
